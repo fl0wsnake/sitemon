@@ -2,30 +2,25 @@ package main
 
 import (
 	"encoding/json"
-	"os"
 	"fmt"
+	"log"
+	"os"
+
 	"github.com/gocolly/colly/v2"
+
+	"github.com/sendgrid/sendgrid-go"
+	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
 type ConfigEntry struct {
-	Site string
-	// selector string
-	// emails   []string
+	Site   string
+	Sel    string
+	Filter string
+	Emails []string
 }
 
 // `[{"site": "foo"}]`
 func main() {
-	c := colly.NewCollector()
-
-	// Find and visit all links
-	c.OnHTML("#BigProductCard > div.jsx-b91b1cc89b9c436e.BigProductCard__content > div:nth-child(2) > div.jsx-7d9b01de45811631.BigProductCardTopInfo > div.jsx-7d9b01de45811631.BigProductCardTopInfo__priceInfo > h6 > .Price__value_title", 
-	func(e *colly.HTMLElement) {
-		// txt := e.Attr("innerText")
-		fmt.Println(e.Text)
-	})
-
-	c.Visit("https://metro.zakaz.ua/uk/products/ukrayina--04820254610291/")
-
 	var config_str = os.Getenv("SITEMON_CONFIG")
 	println(config_str)
 	var config []ConfigEntry
@@ -35,52 +30,39 @@ func main() {
 		return
 	}
 
-	// curl_stdout, err := exec.Command("curl", "https://metro.zakaz.ua/uk/products/ukrayina--04820254610291/",
-	// 	"-H", "accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-	// 	"-H", "accept-language: en-US,en;q=0.8",
-	// 	"-H", "cache-control: max-age=0",
-	// 	"-H", "cookie: __zlcmid=1MsmszNtNM1UzBW; storeId=48215637; deliveryType=plan",
-	// 	"-H", "if-modified-since: Mon, 22 Jul 2024 00:53:00 GMT",
-	// 	"-H", "priority: u=0, i",
-	// 	"-H", `sec-ch-ua: "Not/A)Brand";v="8", "Chromium";v="126", "Brave";v="126"`,
-	// 	"-H", "sec-ch-ua-mobile: ?0",
-	// 	"-H", `sec-ch-ua-platform: "Linux"`,
-	// 	"-H", "sec-fetch-dest: document",
-	// 	"-H", "sec-fetch-mode: navigate",
-	// 	"-H", "sec-fetch-site: same-origin",
-	// 	"-H", "sec-fetch-user: ?1",
-	// 	"-H", "sec-gpc: 1",
-	// 	"-H", "upgrade-insecure-requests: 1",
-	// 	"-H", "user-agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-	// ).Output()
+	for _, configEntry := range config {
+		c := colly.NewCollector()
+
+		c.OnHTML(configEntry.Sel,
+			func(e *colly.HTMLElement) {
+				fmt.Println(e.Text)
+			})
+
+		c.Visit(configEntry.Site)
+		c.OnResponse(func (r colly.Response)  {
+			r.Headers.Get("") // TODO: title
+		})
+	}
 
 	// if err != nil {
 	// 	fmt.Println(err)
 	// 	return
 	// }
-	// // fmt.Println(string(curl_stdout))
+}
 
-	// pup_cmd := exec.Command("pup", `#BigProductCard > div.jsx-b91b1cc89b9c436e.BigProductCard__content > div:nth-child(2) > div.jsx-7d9b01de45811631.BigProductCardTopInfo > div.jsx-7d9b01de45811631.BigProductCardTopInfo__priceInfo > h6 > .Price__value_title text{}`)
-	// pup_pipe, err := pup_cmd.StdinPipe()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-
-	// n, err := pup_pipe.Write(curl_stdout)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	// fmt.Println(n)
-
-	// pup_stdout, err := pup_cmd.Output()
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	return
-	// }
-	// fmt.Println(pup_stdout)
-	// pup_pipe.Close()
+func sendEmail(to, subject, content, link string) {
+	fromEmail := mail.NewEmail("Tira", "tiramisu@example.com")
+	toEmail := mail.NewEmail(to, to)
+	htmlContent := fmt.Sprintf(`%s<a href="%s">`, content, link)
+	message := mail.NewSingleEmail(fromEmail, subject, toEmail, plainTextContent, htmlContent)
+	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
+	response, err := client.Send(message)
+	if err != nil {
+		log.Println(err)
+	} else {
+		fmt.Println(response.StatusCode)
+		fmt.Println(response.Headers)
+	}
 }
 
 // // TODO: init

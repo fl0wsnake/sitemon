@@ -1,12 +1,8 @@
 [
-  {
-    "site": "https://metro.zakaz.ua/uk/products/ukrayina--04820254610291/",
-    "sel": ".jsx-a1f45fc1b875f038",
-    "filter": ">"
-  },
-  {
-    "site": "https://auchan.zakaz.ua/uk/products/ukrayina--04820254610291/",
-    "sel": ".jsx-a1f45fc1b875f038",
-    "filter": ">"
-  }
+	{
+		"site": "https://metro.zakaz.ua/uk/products/ukrayina--04820254610291/",
+		"sel": "#BigProductCard > div.jsx-b91b1cc89b9c436e.BigProductCard__content > div:nth-child(2) > div.jsx-7d9b01de45811631.BigProductCardTopInfo > div.jsx-7d9b01de45811631.BigProductCardTopInfo__priceInfo > h6 > .Price__value_title",
+		"filter": ">",
+    "emails": ["lastthursdayist@gmail.com"]
+	}
 ]
