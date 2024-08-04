@@ -14,10 +14,10 @@ import (
 )
 
 type ConfigEntry struct {
-	Site   string
-	Sel    string
-	Filter string
-	Emails []string
+	Site     string
+	Selector string
+	Filter   string
+	Emails   []string
 }
 
 // `[{"site": "foo"}]`
@@ -27,7 +27,7 @@ func main() {
 	var config []ConfigEntry
 	err := json.Unmarshal([]byte(config_str), &config)
 	if err != nil {
-		println(err)
+			log.Fatal(err)
 		return
 	}
 
@@ -35,29 +35,19 @@ func main() {
 
 		response, err := http.Get(configEntry.Site)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Couldn't fetch", err)
 		}
 		doc, err := goquery.NewDocumentFromReader(response.Body)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatal("Couldn't parse response", err)
 		}
-		fmt.Println(doc.Find(configEntry.Sel).Text())
-
-		// c := colly.NewCollector()
-		// c.OnHTML(configEntry.Sel,
-		// 	func(e *colly.HTMLElement) {
-		// 		fmt.Println(e.Text)
-		// 	})
-		// c.OnResponse(func(r *colly.Response) {
-		// 	title := string(r.Body)
-		// 	fmt.Println("title: " + title)
-		// })
-		// c.Visit(configEntry.Site)
-
+		fmt.Println(doc.Find(configEntry.Selector).Text())
+		
+		// Fetch last text from bucket
 	}
 }
 
-func sendEmail(to, subject, content, link string) {
+func sendEmail(to, subject, content, link string) { // TODO: test
 	fromEmail := mail.NewEmail("Tira", "tiramisu@example.com")
 	toEmail := mail.NewEmail(to, to)
 	htmlContent := fmt.Sprintf(`%s<a href="%s">`, content, link)
