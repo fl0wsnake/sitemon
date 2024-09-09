@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 
+	"cloud.google.com/go/storage"
 	"github.com/PuerkitoBio/goquery"
-	// "github.com/gocolly/colly/v2"
 	"github.com/sendgrid/sendgrid-go"
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
@@ -16,23 +18,21 @@ import (
 type ConfigEntry struct {
 	Site     string
 	Selector string
-	Filter   string
 	Emails   []string
 }
 
 // `[{"site": "foo"}]`
 func main() {
 	var config_str = os.Getenv("SITEMON_CONFIG")
-	println(config_str)
 	var config []ConfigEntry
 	err := json.Unmarshal([]byte(config_str), &config)
 	if err != nil {
-			log.Fatal(err)
+		log.Fatal(err)
 		return
 	}
+	fmt.Println("Config object: ", config)
 
 	for _, configEntry := range config {
-
 		response, err := http.Get(configEntry.Site)
 		if err != nil {
 			log.Fatal("Couldn't fetch", err)
@@ -41,13 +41,51 @@ func main() {
 		if err != nil {
 			log.Fatal("Couldn't parse response", err)
 		}
-		fmt.Println(doc.Find(configEntry.Selector).Text())
-		
-		// Fetch last text from bucket
+		text := doc.Find(configEntry.Selector).Text()
+		if text == "" {
+			log.Fatal("Selector returned an empty string: ", configEntry.Selector, "\n on site", configEntry.Site)
+		}
+		println("text:", text)
 	}
+
+	ctx := context.Background()
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		log.Fatal("Couldn't create a GCS client", err)
+	}
+	defer client.Close()
+
+	object := client.Bucket(os.Getenv("bucket_name")).Object(os.Getenv("object_name"))
+	gcs_read(ctx, object)
+	// TODO
 }
 
-func sendEmail(to, subject, content, link string) { // TODO: test
+func gcs_read(ctx context.Context, object *storage.ObjectHandle) string {
+	reader, err := object.NewReader(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	var contents []byte
+	_, err = reader.Read(contents)
+	if err != nil {
+		log.Fatal("Error reading from GCS bucket", err)
+	}
+	defer reader.Close()
+	log.Printf("Blob %s downloaded: %s.\n", object.ObjectName(), contents)
+	return string(contents)
+}
+
+func gcs_write(ctx context.Context, object *storage.ObjectHandle, contents string) {
+	writer := object.NewWriter(ctx)
+	_, err := io.WriteString(writer, contents)
+	if err != nil {
+		log.Fatal("Error writing to GCS bucket", err)
+	}
+	defer writer.Close()
+	log.Printf("Blob %v uploaded.\n", object.ObjectName())
+}
+
+func sendEmail(to, subject, content, link string) {
 	fromEmail := mail.NewEmail("Tira", "tiramisu@example.com")
 	toEmail := mail.NewEmail(to, to)
 	htmlContent := fmt.Sprintf(`%s<a href="%s">`, content, link)
@@ -61,24 +99,3 @@ func sendEmail(to, subject, content, link string) { // TODO: test
 		fmt.Println(response.Headers)
 	}
 }
-
-// // TODO: cloud function init
-// func main() {
-//    functions.HTTP("HelloHTTP", helloHTTP)
-// }
-
-// // helloHTTP is an HTTP Cloud Function with a request parameter.
-// func helloHTTP(w http.ResponseWriter, r *http.Request) {
-//   var d struct {
-//     Name string `json:"name"`
-//   }
-//   if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
-//     fmt.Fprint(w, "Hello, World!")
-//     return
-//   }
-//   if d.Name == "" {
-//     fmt.Fprint(w, "Hello, World!")
-//     return
-//   }
-//   fmt.Fprintf(w, "Hello, %s!", html.EscapeString(d.Name))
-// }
