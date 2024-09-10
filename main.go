@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"testing"
 
 	"cloud.google.com/go/storage"
 	"github.com/PuerkitoBio/goquery"
@@ -15,61 +16,56 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-type ConfigEntry struct {
-	Site     string
-	Selector string
-	Emails   []string
+type Site struct {
+	Url       string
+	Headers   map[string][]string
+	Selectors []string
+	Emails    []string
 }
 
-// `[{"site": "foo"}]`
+var t = &testing.T{}
+
 func main() {
 	var config_str = os.Getenv("SITEMON_CONFIG")
-	var config []ConfigEntry
-	err := json.Unmarshal([]byte(config_str), &config)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	fmt.Println("Config object: ", config)
+	var sites []Site
+	err := json.Unmarshal([]byte(config_str), &sites)
+	assert(err)
 
-	for _, configEntry := range config {
-		response, err := http.Get(configEntry.Site)
-		if err != nil {
-			log.Fatal("Couldn't fetch", err)
-		}
-		doc, err := goquery.NewDocumentFromReader(response.Body)
-		if err != nil {
-			log.Fatal("Couldn't parse response", err)
-		}
-		text := doc.Find(configEntry.Selector).Text()
-		if text == "" {
-			log.Fatal("Selector returned an empty string: ", configEntry.Selector, "\n on site", configEntry.Site)
-		}
-		println("text:", text)
-	}
-
+	// Init GCS
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
-	if err != nil {
-		log.Fatal("Couldn't create a GCS client", err)
-	}
+	assert(err, "Creating a GCS client")
 	defer client.Close()
 
-	object := client.Bucket(os.Getenv("bucket_name")).Object(os.Getenv("object_name"))
-	gcs_read(ctx, object)
-	// TODO
+	// Fetch site data
+	bucket := client.Bucket(os.Getenv("BUCKET"))
+	for _, site := range sites {
+		req, err := http.NewRequest("GET", site.Url, nil)
+		req.Header = site.Headers
+		client := http.Client{}
+		res, err := client.Do(req)
+		assert(err, "Fetching", site.Url)
+		doc, err := goquery.NewDocumentFromReader(res.Body)
+		assert(err, "Parsing response from", site.Url)
+		var site_text string
+		for _, selector := range site.Selectors {
+			site_text += doc.Find(selector).Text()
+		}
+
+		object := bucket.Object(os.Getenv("object_name"))
+		bucket_text := gcs_read(ctx, object)
+		if site_text != bucket_text {
+
+		}
+	}
 }
 
 func gcs_read(ctx context.Context, object *storage.ObjectHandle) string {
 	reader, err := object.NewReader(ctx)
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert(err)
 	var contents []byte
 	_, err = reader.Read(contents)
-	if err != nil {
-		log.Fatal("Error reading from GCS bucket", err)
-	}
+	assert(err, "Reading from gcs bucket")
 	defer reader.Close()
 	log.Printf("Blob %s downloaded: %s.\n", object.ObjectName(), contents)
 	return string(contents)
@@ -78,9 +74,7 @@ func gcs_read(ctx context.Context, object *storage.ObjectHandle) string {
 func gcs_write(ctx context.Context, object *storage.ObjectHandle, contents string) {
 	writer := object.NewWriter(ctx)
 	_, err := io.WriteString(writer, contents)
-	if err != nil {
-		log.Fatal("Error writing to GCS bucket", err)
-	}
+	assert(err, "Writing to GCS bucket")
 	defer writer.Close()
 	log.Printf("Blob %v uploaded.\n", object.ObjectName())
 }
@@ -92,10 +86,17 @@ func sendEmail(to, subject, content, link string) {
 	message := mail.NewSingleEmail(fromEmail, subject, toEmail, content, htmlContent)
 	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
 	response, err := client.Send(message)
+	assert(err)
+	fmt.Println(response.StatusCode)
+	fmt.Println(response.Headers)
+}
+
+func assert(err error, msg ...string) {
 	if err != nil {
-		log.Println(err)
-	} else {
-		fmt.Println(response.StatusCode)
-		fmt.Println(response.Headers)
+		if len(msg) > 0 {
+			log.Fatal(msg[0], ": ", err)
+		} else {
+			log.Fatal(err)
+		}
 	}
 }
