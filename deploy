@@ -1,0 +1,5 @@
+#!/bin/bash
+
+REGION=europe-central2
+gcloud functions deploy sitemon --region=$REGION --runtime=go122 --source=. --trigger-http
+gcloud scheduler jobs create app-engine sitemon --location=$REGION --schedule='0 * * * *'

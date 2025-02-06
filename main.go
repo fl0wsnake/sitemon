@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 
@@ -25,21 +26,24 @@ type Site struct {
 
 var t = &testing.T{}
 
+const bucket_name = "sitemon"
+const object_name = "data"
+const function_name = "sitemon"
+
 func main() {
-	var config_str = os.Getenv("SITEMON_CONFIG")
-	var sites []Site
-	err := json.Unmarshal([]byte(config_str), &sites)
+	ctx := context.Background()
+	var config_str = os.Getenv("CONFIG")
+	var config []Site
+	err := json.Unmarshal([]byte(config_str), &config)
 	assert(err)
 
-	// Init GCS
-	ctx := context.Background()
+	// TODO where do the credentials come from?
 	client, err := storage.NewClient(ctx)
 	assert(err, "Creating a GCS client")
 	defer client.Close()
 
-	// Fetch site data
-	bucket := client.Bucket(os.Getenv("BUCKET"))
-	for _, site := range sites {
+	bucket := client.Bucket(bucket_name)
+	for _, site := range config {
 		req, err := http.NewRequest("GET", site.Url, nil)
 		req.Header = site.Headers
 		client := http.Client{}
@@ -52,12 +56,20 @@ func main() {
 			site_text += doc.Find(selector).Text()
 		}
 
-		object := bucket.Object(os.Getenv("object_name"))
+		object := bucket.Object(object_name)
 		bucket_text := gcs_read(ctx, object)
 		if site_text != bucket_text {
+			gcs_write(ctx, object, site_text)
 
+			// Send mail
+			for _, email := range site.Emails {
+				siteurl, err := url.Parse(site.Url)
+				assert(err)
+				sendEmail(email, siteurl.Hostname(), site_text, site.Url)
+			}
 		}
 	}
+	return nil
 }
 
 func gcs_read(ctx context.Context, object *storage.ObjectHandle) string {
