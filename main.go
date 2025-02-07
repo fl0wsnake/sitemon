@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"testing"
+	// "testing"
 
 	"cloud.google.com/go/storage"
 	"github.com/PuerkitoBio/goquery"
@@ -17,14 +17,15 @@ import (
 	"github.com/sendgrid/sendgrid-go/helpers/mail"
 )
 
-type Site struct {
+type Site_entry struct {
 	Url       string
 	Headers   map[string][]string
 	Selectors []string
 	Emails    []string
+	Data      string
 }
 
-var t = &testing.T{}
+// var t = &testing.T{}
 
 const bucket_name = "sitemon"
 const object_name = "data"
@@ -32,18 +33,18 @@ const function_name = "sitemon"
 
 func main() {
 	ctx := context.Background()
-	var config_str = os.Getenv("CONFIG")
-	var config []Site
-	err := json.Unmarshal([]byte(config_str), &config)
-	assert(err)
 
 	// TODO where do the credentials come from?
 	client, err := storage.NewClient(ctx)
 	assert(err, "Creating a GCS client")
 	defer client.Close()
 
-	bucket := client.Bucket(bucket_name)
-	for _, site := range config {
+	object := client.Bucket(bucket_name).Object(object_name)
+	sites_str := gcs_read(ctx, object)
+	var sites []Site_entry
+	err = json.Unmarshal([]byte(sites_str), &sites)
+	assert(err)
+	for _, site := range sites {
 		req, err := http.NewRequest("GET", site.Url, nil)
 		req.Header = site.Headers
 		client := http.Client{}
@@ -51,25 +52,22 @@ func main() {
 		assert(err, "Fetching", site.Url)
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		assert(err, "Parsing response from", site.Url)
-		var site_text string
+		var site_data string
 		for _, selector := range site.Selectors {
-			site_text += doc.Find(selector).Text()
+			site_data += doc.Find(selector).Text()
 		}
 
-		object := bucket.Object(object_name)
-		bucket_text := gcs_read(ctx, object)
-		if site_text != bucket_text {
-			gcs_write(ctx, object, site_text)
-
-			// Send mail
+		var mailing map[string]string
+		if site_data != site.Data {
+			// TODO group sites by email address before sending
 			for _, email := range site.Emails {
 				siteurl, err := url.Parse(site.Url)
 				assert(err)
-				sendEmail(email, siteurl.Hostname(), site_text, site.Url)
+				sendEmail(email, siteurl.Hostname(), site_data, site.Url)
 			}
+			gcs_write(ctx, object, site_data)
 		}
 	}
-	return nil
 }
 
 func gcs_read(ctx context.Context, object *storage.ObjectHandle) string {
@@ -96,6 +94,7 @@ func sendEmail(to, subject, content, link string) {
 	toEmail := mail.NewEmail(to, to)
 	htmlContent := fmt.Sprintf(`%s<a href="%s">`, content, link)
 	message := mail.NewSingleEmail(fromEmail, subject, toEmail, content, htmlContent)
+	// TODO
 	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
 	response, err := client.Send(message)
 	assert(err)
