@@ -44,6 +44,7 @@ func main() {
 	var sites []Site_entry
 	err = json.Unmarshal([]byte(sites_str), &sites)
 	assert(err)
+	var mailing map[string]string
 	for _, site := range sites {
 		req, err := http.NewRequest("GET", site.Url, nil)
 		req.Header = site.Headers
@@ -52,20 +53,23 @@ func main() {
 		assert(err, "Fetching", site.Url)
 		doc, err := goquery.NewDocumentFromReader(res.Body)
 		assert(err, "Parsing response from", site.Url)
-		var site_data string
+		var data_latest string
 		for _, selector := range site.Selectors {
-			site_data += doc.Find(selector).Text()
+			data_latest += doc.Find(selector).Text()
 		}
 
-		var mailing map[string]string
-		if site_data != site.Data {
+		if data_latest != site.Data {
 			// TODO group sites by email address before sending
 			for _, email := range site.Emails {
-				siteurl, err := url.Parse(site.Url)
-				assert(err)
-				sendEmail(email, siteurl.Hostname(), site_data, site.Url)
+				mailing[email] += data_latest
 			}
-			gcs_write(ctx, object, site_data)
+			gcs_write(ctx, object, data_latest)
+		}
+
+		for email, data := range mailing {
+			siteurl, err := url.Parse(site.Url)
+			assert(err)
+			sendEmail(email, siteurl.Hostname(), data, site.Url)
 		}
 	}
 }
@@ -89,12 +93,13 @@ func gcs_write(ctx context.Context, object *storage.ObjectHandle, contents strin
 	log.Printf("Blob %v uploaded.\n", object.ObjectName())
 }
 
+// TODO link? Fix html content
 func sendEmail(to, subject, content, link string) {
 	fromEmail := mail.NewEmail("Tira", "tiramisu@example.com")
 	toEmail := mail.NewEmail(to, to)
 	htmlContent := fmt.Sprintf(`%s<a href="%s">`, content, link)
 	message := mail.NewSingleEmail(fromEmail, subject, toEmail, content, htmlContent)
-	// TODO
+	// TODO sendgrid
 	client := sendgrid.NewSendClient(os.Getenv("SENDGRID_API_KEY"))
 	response, err := client.Send(message)
 	assert(err)
