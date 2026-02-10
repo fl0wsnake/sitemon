@@ -16,6 +16,7 @@ setup:
     --channel-labels=email_address="lastthursdayist@gmail.com" \
 # Created notification channel [projects/personal-437021/notificationChannels/9989632443993401243].
 	gcloud alpha monitoring policies create --policy-from-file="alert-policy.json"
+	# TODO add trigger
 
 
 run:

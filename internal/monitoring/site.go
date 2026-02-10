@@ -37,7 +37,7 @@ func (site *Site) Match() *string {
 	}
 
 	if text_matched_sb.String() != site.MatchedText {
-		site.MatchedText = text_matched_sb.String() // BUG: does not seem to work
+		site.MatchedText = text_matched_sb.String()
 		res := fmt.Sprintf("# %s:\n%s\n\n", site.Url, text_matched_sb.String())
 		return &res
 	} else {

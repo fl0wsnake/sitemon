@@ -30,7 +30,7 @@ func (gs *GStorage) Deinit() {
 	gs.client.Close()
 }
 
-func (gs *GStorage) FetchSites(ctx context.Context) ([]monitoring.Site, error) { // Make a goroutine TODO return err
+func (gs *GStorage) FetchSites(ctx context.Context) ([]monitoring.Site, error) {
 	reader, err := gs.object.NewReader(ctx)
 	if err != nil {
 		return nil, err
@@ -55,5 +55,5 @@ func (gs *GStorage) SaveSites(ctx context.Context, sites []monitoring.Site) {
 	util.Assert(err, "Writing to GS bucket")
 	defer writer.Close()
 
-	log.Printf("Blob %v uploaded.\n", gs.object.ObjectName())
+	log.Printf("Blob %s uploaded to %v.\n", sites_byte, gs.object.ObjectName())
 }

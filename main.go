@@ -17,8 +17,8 @@ func main() {
 	util.Assert(err, "GS object does not exist")
 
 	var matches strings.Builder
-	for _, site := range sites {
-		match := site.Match() // TODO parallelize
+	for site_i := range sites {
+		match := sites[site_i].Match() // TODO parallelize
 		if match != nil {
 			matches.WriteString(*match)
 		}
