@@ -1,8 +1,27 @@
 [
   {
     "url": "https://auchan.zakaz.ua/uk/products/file-somga-norven-180g--04820224237954/",
-    "selectors": [
-      ".Price__value_title"
-    ]
+    "matchers": {
+      ".Price__value_title": "^1.*",
+      ".BigProductCardTopInfo__discountPriceContainer": ".*"
+    }
+  },
+  {
+    "url": "https://auchan.zakaz.ua/uk/products/snek-40g--04823097904091/",
+    "matchers": {
+      ".BigProductCardTopInfo__discountPriceContainer": ".*"
+    }
+  },
+  {
+    "url": "https://auchan.zakaz.ua/uk/products/snek-40g--04823097904114/",
+    "matchers": {
+      ".BigProductCardTopInfo__discountPriceContainer": ".*"
+    }
+  },
+  {
+    "url": "https://auchan.zakaz.ua/uk/products/snek-40g--04823097903377/",
+    "matchers": {
+      ".BigProductCardTopInfo__discountPriceContainer": ".*"
+    }
   }
 ]
