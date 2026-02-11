@@ -1,18 +1,20 @@
-package main
+package sitemon
 
 // For now only meant to be run locally once
 
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/fl0wsnake/sitemon/internal/gstorage"
+	"github.com/fl0wsnake/sitemon/internal/monitoring"
+	"github.com/fl0wsnake/sitemon/internal/util"
 	"os"
-	"sitemon/internal/gstorage"
-	"sitemon/internal/monitoring"
-	"sitemon/internal/util"
 )
 
-func main() {
-	ctx := context.Background()
+func main() error {
+	ctx := context.Background
+
 	gs := gstorage.Init(ctx)
 	defer gs.Deinit()
 
@@ -24,4 +26,6 @@ func main() {
 	util.Assert(err)
 
 	gs.SaveSites(ctx, sites)
+
+	return nil
 }

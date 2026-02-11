@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-	"sitemon/internal/monitoring"
-	"sitemon/internal/util"
+	"github.com/fl0wsnake/sitemon/internal/monitoring"
+	"github.com/fl0wsnake/sitemon/internal/util"
 
 	"cloud.google.com/go/storage"
 )

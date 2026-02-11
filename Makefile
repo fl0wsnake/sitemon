@@ -16,7 +16,19 @@ setup:
     --channel-labels=email_address="lastthursdayist@gmail.com" \
 # Created notification channel [projects/personal-437021/notificationChannels/9989632443993401243].
 	gcloud alpha monitoring policies create --policy-from-file="alert-policy.json"
-	# TODO add trigger
+	gcloud pubsub topics create topic-hourly
+	gcloud functions deploy hourly-function \
+		--gen2 \
+		--runtime=go125 \
+		--region=us-east1 \
+		--source=. \
+		--entry-point=HourlyFunc \
+		--trigger-topic=topic-hourly
+	gcloud scheduler jobs create pubsub job-hourly-trigger \
+    --schedule="0 * * * *" \
+    --topic=topic-hourly \
+    --message-body="just do it" \
+    --location=us-east1
 
 
 run:

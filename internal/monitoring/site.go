@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	"sitemon/internal/util"
+	"github.com/fl0wsnake/sitemon/internal/util"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
